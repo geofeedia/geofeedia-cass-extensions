@@ -1,0 +1,8 @@
+/target/
+.settings
+.project
+.classpath
+
+# IntelliJ IDEA
+.idea/
+*.iml
