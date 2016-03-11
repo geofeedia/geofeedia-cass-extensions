@@ -40,7 +40,7 @@ public class MultiCloudSnitch extends AbstractNetworkTopologySnitch {
         // if no response the neither URL returned metadata so unable to continue.
         if (response == null) {
             throw new ConfigurationException("Unable to determine cloud. Checked both GCE and AWS with the following urls: [" +
-                    GCE_ZONE_QUERY_URL + ", " + AWS_ZONE_QUERY_URL);
+                    GCE_ZONE_QUERY_URL + ", " + AWS_ZONE_QUERY_URL + "]");
         }
 
         // check for aws prefix for provider
