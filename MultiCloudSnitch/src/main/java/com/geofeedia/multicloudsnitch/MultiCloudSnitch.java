@@ -19,7 +19,6 @@ import java.net.HttpURLConnection;
 import java.net.InetAddress;
 import java.net.URL;
 import java.nio.charset.StandardCharsets;
-import java.util.HashMap;
 import java.util.Map;
 
 
@@ -36,38 +35,38 @@ public class MultiCloudSnitch extends AbstractNetworkTopologySnitch {
 
     public MultiCloudSnitch() throws IOException, ConfigurationException {
         SnitchProperties props = new SnitchProperties();
-        String datacenter = props.get("dc", "");
-        String response;
-        Map<String, String> headers = new HashMap<>();
+        String response = this.getMetaData();
 
-        if (datacenter.isEmpty()) {
-            throw new ConfigurationException("No datacenter provided in cassandra-rackdc.properties file");
+        // if no response the neither URL returned metadata so unable to continue.
+        if (response == null) {
+            throw new ConfigurationException("Unable to determine cloud. Checked both GCE and AWS with the following urls: [" +
+                    GCE_ZONE_QUERY_URL + ", " + AWS_ZONE_QUERY_URL);
         }
 
         // check for aws prefix for provider
-        if (datacenter.matches("aws-(.*)")) {
-            // get instance metadata
-            response = getMetadataApiCall(AWS_ZONE_QUERY_URL, null);
+        if (response.matches("aws_(.*)")) {
+            // remove cloud prefix (aws_)
+            response = response.substring(4);
 
-            // Split "us-central1-a" or "asia-east1-a" into "us-central1"/"a" and "asia-east1"/"a".
-            String[] splits = response.split("-");
-            zone = splits[splits.length - 1];
+            zone = response.substring(response.length() - 1);
 
             // hack/fix for CASSANDRA-4026
             region = response.substring(0, response.length() - 1);
             if (region.endsWith("1")) {
-                region = response.substring(0, response.length() - 3);
+                region = response.substring(0, response.length() - 1);
             }
 
             String dataCenterSuffix = props.get("dc_suffix", "");
-            region = region.concat(dataCenterSuffix);
+            StringBuilder builder = new StringBuilder();
+            // build the final region string.
+            // should be in the format of <cloud_provider>-<region><dc_suffix>
+            region = builder.append("aws-").append(region).append(dataCenterSuffix).toString();
             LOG.info("MultiCloudSnitch in AWS using region: {}, zone: {}", region, zone);
 
-        // check for gce prefix for provider
-        } else if (datacenter.matches("gce-(.*)")) {
-            headers.put("Metadata-Flavor", "Google");
-            // get instance metadata
-            response = getMetadataApiCall(GCE_ZONE_QUERY_URL, headers);
+        // if not in aws then must be in gce
+        } else if (response.matches("gce_(.*)")) {
+            // remove cloud prefix (gce_)
+            response = response.substring(4);
 
             // since google returns something like `projects/736271449687/zones/us-east1-b`
             // we want to split on the slashes and only get the last section for the az.
@@ -81,30 +80,66 @@ public class MultiCloudSnitch extends AbstractNetworkTopologySnitch {
             region = az.substring(0, lastRegionIdx);
 
             String dataCenterSuffix = props.get("dc_suffix", "");
-            region = region.concat(dataCenterSuffix);
+            StringBuilder builder = new StringBuilder();
+            // build the final region string.
+            // should be in the format of <cloud_provider>-<region><dc_suffix>
+            region = builder.append("gce-").append(region).append(dataCenterSuffix).toString();
             LOG.info("MultiCloudSnitch in GCE using region: {}, zone: {}", region, zone);
 
         } else {
-            throw new ConfigurationException("Unable to identify datacenter provider. Currently support GCE and AWS");
+            throw new ConfigurationException("There was an error getting the region and zone from either GCE or AWS");
         }
     }
 
-    public String getMetadataApiCall(String url, Map<String, String> headers) throws IOException, ConfigurationException {
-        HttpURLConnection conn = (HttpURLConnection) new URL(url).openConnection();
+    private String getMetaData() throws IOException, ConfigurationException {
+        // dynamically determine which cloud we are in (gce/aws)
+        // by hitting the end points.
+        String metaData = awsApiCall();
+        if (metaData != null) {
+            // append aws to indicate we are in aws
+            return "aws_" + metaData;
+        }
+
+        metaData = gceApiCall();
+        if (metaData != null) {
+            // append gce to indicate we are in gce
+            return "gce_" + metaData;
+        }
+
+        return null;
+    }
+
+    private String awsApiCall() throws IOException, ConfigurationException {
+        HttpURLConnection conn = (HttpURLConnection) new URL(AWS_ZONE_QUERY_URL).openConnection();
         DataInputStream dataInputStream = null;
 
         try {
             conn.setRequestMethod("GET");
 
-            // set any request headers if present
-            if (headers != null) {
-                for (Map.Entry<String, String> header : headers.entrySet()) {
-                    conn.setRequestProperty(header.getKey(), header.getValue());
-                }
+            if (conn.getResponseCode() != 200) {
+                return null;
             }
 
+            int contentLength = conn.getContentLength();
+            byte[] bytes = new byte[contentLength];
+            dataInputStream = new DataInputStream((FilterInputStream) conn.getContent());
+            return new String(bytes, StandardCharsets.UTF_8);
+
+        } finally {
+            FileUtils.close(dataInputStream);
+            conn.disconnect();
+        }
+    }
+
+    private String gceApiCall() throws IOException, ConfigurationException {
+        HttpURLConnection conn = (HttpURLConnection) new URL(AWS_ZONE_QUERY_URL).openConnection();
+        DataInputStream dataInputStream = null;
+
+        try {
+            conn.setRequestMethod("GET");
+            conn.setRequestProperty("Metadata-Flavor", "Google");
             if (conn.getResponseCode() != 200) {
-                throw new ConfigurationException("Unable to execute API call at the following url: " + url);
+                return null;
             }
 
             int contentLength = conn.getContentLength();
