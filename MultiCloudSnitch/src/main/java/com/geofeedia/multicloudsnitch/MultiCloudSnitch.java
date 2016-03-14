@@ -63,7 +63,7 @@ public class MultiCloudSnitch extends AbstractNetworkTopologySnitch {
             region = builder.append("aws-").append(region).append(dataCenterSuffix).toString();
             LOG.info("MultiCloudSnitch in AWS using region: {}, zone: {}", region, zone);
 
-        // if not in aws then must be in gce
+        // if not in aws then check for gce
         } else if (response.matches("gce_(.*)")) {
             // remove cloud prefix (gce_)
             response = response.substring(4);
@@ -86,6 +86,7 @@ public class MultiCloudSnitch extends AbstractNetworkTopologySnitch {
             region = builder.append("gce-").append(region).append(dataCenterSuffix).toString();
             LOG.info("MultiCloudSnitch in GCE using region: {}, zone: {}", region, zone);
 
+        // unknown cloud (i.e. not GCE or AWS) prefix so throw exception
         } else {
             throw new ConfigurationException("There was an error getting the region and zone from either GCE or AWS");
         }
@@ -97,12 +98,14 @@ public class MultiCloudSnitch extends AbstractNetworkTopologySnitch {
         String metaData = awsApiCall();
         if (metaData != null) {
             // append aws to indicate we are in aws
+            LOG.info("Getting metadata from AWS.");
             return "aws_" + metaData;
         }
 
         metaData = gceApiCall();
         if (metaData != null) {
             // append gce to indicate we are in gce
+            LOG.info("Getting metadata from GCE.");
             return "gce_" + metaData;
         }
 
@@ -115,7 +118,6 @@ public class MultiCloudSnitch extends AbstractNetworkTopologySnitch {
 
         try {
             conn.setRequestMethod("GET");
-
             if (conn.getResponseCode() != 200) {
                 return null;
             }
@@ -159,8 +161,7 @@ public class MultiCloudSnitch extends AbstractNetworkTopologySnitch {
         }
 
         EndpointState state = Gossiper.instance.getEndpointStateForEndpoint(endpoint);
-        if (state == null || state.getApplicationState(ApplicationState.RACK) == null)
-        {
+        if (state == null || state.getApplicationState(ApplicationState.RACK) == null) {
             if (savedEndpoints == null) {
                 savedEndpoints = SystemKeyspace.loadDcRackInfo();
             }
@@ -178,8 +179,7 @@ public class MultiCloudSnitch extends AbstractNetworkTopologySnitch {
         }
 
         EndpointState state = Gossiper.instance.getEndpointStateForEndpoint(endpoint);
-        if (state == null || state.getApplicationState(ApplicationState.DC) == null)
-        {
+        if (state == null || state.getApplicationState(ApplicationState.DC) == null) {
             if (savedEndpoints == null) {
                 savedEndpoints = SystemKeyspace.loadDcRackInfo();
             }
