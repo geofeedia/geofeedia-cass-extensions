@@ -125,6 +125,7 @@ public class MultiCloudSnitch extends AbstractNetworkTopologySnitch {
             int contentLength = conn.getContentLength();
             byte[] bytes = new byte[contentLength];
             dataInputStream = new DataInputStream((FilterInputStream) conn.getContent());
+            dataInputStream.readFully(bytes);
             return new String(bytes, StandardCharsets.UTF_8);
 
         } finally {
@@ -147,6 +148,7 @@ public class MultiCloudSnitch extends AbstractNetworkTopologySnitch {
             int contentLength = conn.getContentLength();
             byte[] bytes = new byte[contentLength];
             dataInputStream = new DataInputStream((FilterInputStream) conn.getContent());
+            dataInputStream.readFully(bytes);
             return new String(bytes, StandardCharsets.UTF_8);
 
         } finally {
