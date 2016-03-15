@@ -24,7 +24,7 @@ import java.util.Map;
 
 public class MultiCloudSnitch extends AbstractNetworkTopologySnitch {
     protected static final Logger LOG = LoggerFactory.getLogger(MultiCloudSnitch.class);
-    private static final String GCE_ZONE_QUERY_URL = "http://metadata.google.internal/computeMetadata/v1/instance/zone";
+    private static final String GCE_ZONE_QUERY_URL = "http://169.254.169.254/computeMetadata/v1/instance/zone";
     private static final String AWS_ZONE_QUERY_URL = "http://169.254.169.254/latest/meta-data/placement/availability-zone";
     private static final String DEFAULT_DATACENTER = "UNKNOWN-DC";
     private static final String DEFAULT_RACK = "UNKNOWN-RACK";
@@ -134,7 +134,7 @@ public class MultiCloudSnitch extends AbstractNetworkTopologySnitch {
     }
 
     private String gceApiCall() throws IOException, ConfigurationException {
-        HttpURLConnection conn = (HttpURLConnection) new URL(AWS_ZONE_QUERY_URL).openConnection();
+        HttpURLConnection conn = (HttpURLConnection) new URL(GCE_ZONE_QUERY_URL).openConnection();
         DataInputStream dataInputStream = null;
 
         try {
