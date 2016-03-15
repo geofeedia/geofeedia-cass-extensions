@@ -3,18 +3,18 @@
          xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/maven-v4_0_0.xsd">
 
     <modelVersion>4.0.0</modelVersion>
-    <groupId>com.geofeedia.multicloudsnitch</groupId>
-    <artifactId>MultiCloudSnitch</artifactId>
+    <groupId>com.geofeedia.cassandra</groupId>
+    <artifactId>geofeedia-cass-extensions</artifactId>
     <packaging>jar</packaging>
-    <version>1.0-SNAPSHOT</version>
-    <name>MultiCloudSnitch</name>
-    <description>Cassandra Snitch for multi-cloud (aws/gce)</description>
+    <version>1.0.0</version>
+    <name>Geofeedia Cassandra Extensions</name>
+    <description>Cassandra extensions for multi-cloud support</description>
 
     <dependencies>
         <dependency>
             <groupId>org.apache.cassandra</groupId>
             <artifactId>cassandra-all</artifactId>
-            <version>3.0.2</version>
+            <version>3.0.4</version>
         </dependency>
     </dependencies>
 

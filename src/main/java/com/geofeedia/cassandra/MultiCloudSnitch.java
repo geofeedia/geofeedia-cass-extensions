@@ -1,4 +1,4 @@
-package com.geofeedia.multicloudsnitch;
+package com.geofeedia.cassandra;
 
 import org.apache.cassandra.db.SystemKeyspace;
 import org.apache.cassandra.exceptions.ConfigurationException;
